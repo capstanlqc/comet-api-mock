@@ -1,61 +1,56 @@
 import os
+from glob import glob
+
+# from pathlib import Path
+from code.get_models import get_model_id
 from code.models.mtpe import ScoredTranslation, Translation
 from typing import List
 
+# from comet import download_model, load_from_checkpoint
+# from huggingface_hub import snapshot_download
 from comet import load_from_checkpoint
 from dotenv import load_dotenv
-from fastapi import APIRouter  # HTTPException, status
+from fastapi import APIRouter, HTTPException  # , status
 from huggingface_hub import login
 
+# from comet import download_model, load_from_checkpoint
 # from huggingface_hub import snapshot_download
 
-os.environ["HF_HOME"] = "/run/media/souto/257-FLASH/.cache/huggingface/hub/"
-os.environ["HUGGINGFACE_HUB_CACHE"] = (
-    "/run/media/souto/257-FLASH/.cache/huggingface/hub/"
-)
-# os.environ["TRANSFORMERS_CACHE"] = "/run/media/souto/257-FLASH/.cache/huggingface/hub/"
-os.environ["HF_DATASETS_CACHE"] = "/run/media/souto/257-FLASH/.cache/huggingface/hub/"
-os.environ["HF_HOME"] = "/run/media/souto/257-FLASH/.cache/huggingface/hub/"
 
 load_dotenv()
+custom_hf_cache_dpath = os.getenv("HF_HOME")
+# HF_HOME = os.getenv("HF_HOME")
+# HF_HOME = os.environ["HF_HOME"]
 TOKEN = os.environ["HUGGINGFACE_TOKEN"]
-login(TOKEN)
-
-custom_hf_cache_dpath = "/run/media/souto/257-FLASH/.cache/huggingface/hub"
-org = "Unbabel"
-# model = "wmt20-comet-qe-da"
-model = "wmt22-cometkiwi-da"
-folder = f"models--{org}--{model}"
-repo_id = f"{org}/{model}"
-
+login(TOKEN)  # huggingface-cli login --token $HUGGINGFACE_TOKEN
 clean_up_tokenization_spaces = True
 
 
 router = APIRouter()
 
-# from comet import download_model, load_from_checkpoint
-# model_path = download_model(f"{org}/{model}")
 
-# snapshot_download(
-#     repo_id="Unbabel/wmt20-comet-qe-da",
-#     repo_type="model",
-#     cache_dir=f"{custom_hf_cache_dpath}/models--{org}--{model}",
-# )
+def get_model_ckpt_fpath(model_id):
+    if not model_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid model specified in query parameter, model '{model_id}' does not exist on Hugging Face.",
+        )
 
-if repo_id == "Unbabel/wmt22-cometkiwi-da":
-    model_path = f"{custom_hf_cache_dpath}/models--{org}--{model}/snapshots/b3a8aea5a5fc22db68a554b92b3d96eb6ea75cc9/checkpoints/model.ckpt"
-elif repo_id == "Unbabel/wmt20-comet-qe-da":
-    model_path = f"{custom_hf_cache_dpath}/models--{org}--{model}s/snapshots/2e7ffc84fb67d99cf92506611766463bb9230cfb/checkpoints/model.ckpt"
+    model_dir = f"models--{model_id.replace('/', '--')}"
 
-model = load_from_checkpoint(model_path)
+    # Use glob to find the file matching the pattern
+    return glob(
+        os.path.join(f"{custom_hf_cache_dpath}/{model_dir}", "**", "model.ckpt"),
+        recursive=True,
+    )[0]
 
 
-def produce_scores(data):
+def produce_scores(model_ckpt, data):
     data_dict = [{"src": obj.src, "mt": obj.mt} for obj in data]
     # model_output = model.predict(data, batch_size=8, gpus=1)
     # print(f"{model_output.scores=}")  # sentence-level scores
     # print(f"{model_output.system_score=}")  # average score
-    return model.predict(data_dict, batch_size=8, gpus=1).scores
+    return model_ckpt.predict(data_dict, batch_size=8, gpus=1).scores
 
 
 def add_scores_to_data(data, scores):
@@ -70,11 +65,16 @@ def add_scores_to_data(data, scores):
 
 
 @router.get("/scores")
-async def get_scores(translations: List[Translation]):
+async def get_scores(translations: List[Translation], model: str):
+    model_id = get_model_id(model)
+    model_fpath = get_model_ckpt_fpath(model_id)
+
+    model_ckpt = load_from_checkpoint(model_fpath)
+
     # model_output_scores = [0.3048415184020996, 0.23436091840267181, 0.6128204464912415]
     # model_output_system_score = 0.38400762776533764
 
-    scores = produce_scores(translations)
+    scores = produce_scores(model_ckpt, translations)
     return {
         "data": add_scores_to_data(translations, scores),
         "model_output_system_score": sum(scores) / len(scores),
