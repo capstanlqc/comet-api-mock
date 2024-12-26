@@ -54,7 +54,6 @@ def find_model_in_hf(model):
 
 if __name__ == "__main__":
     model = get_model(sys.argv)
-    print(f"{model=}")
 
     if not model:
         sys.exit(
@@ -64,12 +63,16 @@ if __name__ == "__main__":
     # x = find_model_in_hf(model)
     repo_id = get_model_id(model)
 
-    snapshot_download(
+    print(f"{repo_id=}\n{model=}\n{custom_hf_cache_dpath=}")
+
+    x = snapshot_download(
         repo_id=repo_id,
         repo_type="model",
         cache_dir=f"{custom_hf_cache_dpath}",
+        # add_to_git_credential=True
     )
 
+    print(x)
     print(
         f"Downloading model to {custom_hf_cache_dpath}/models--{repo_id.replace('/', '--')}"
     )

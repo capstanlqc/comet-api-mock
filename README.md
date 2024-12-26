@@ -17,7 +17,7 @@ python -m venv venv && source venv/bin/activate
 
 Install dependencies:
 ```
-pip install -r requirements
+pip install -r requirements.txt
 ```
 
 Copy `.env.example` to `.env`:
@@ -27,7 +27,7 @@ cp .env.example .env
 
 Update the environment variables you need to use in `.env`.
 
-Download required models, e.g. 
+Download required models, e.g.
 ```bash
 python code/get_models.py --model Unbabel/wmt22-cometkiwi-da 
 ```
@@ -39,16 +39,28 @@ fastapi dev code/main.py
 
 ## Test
 
-The following call:
+The mandatory `model` parameter accepts values such as `provider/model`. The optional `mode` parameter accepts either `mock` (default value, if missing) or any other value (e.g. `dev` or `prod`, not yet defined).
+
+The following call will get mock random scores (same as without `mode` parameter):
 
 ```bash
-curl --location --request GET 'http://127.0.0.1:8000/api/scores?model=Unbabel/wmt22-cometkiwi-da' \
+curl --location --request GET 'http://127.0.0.1:8000/api/scores?model=Unbabel/wmt22-cometkiwi-da&mode=mock' \
 --header 'Content-Type: application/json' \
 --data '[
     {"src": "How to Demonstrate Your Strategic Thinking Skills", "mt": "Cómo demostrar su capacidad de pensamiento estratégico" },{ "src": "Why is Accuracy important in the workplace?", "mt": "¿Por qué es importante la precisión en el trabajo" }, { "src": "When faced with a large amount of analysis ask for support setting up a team to approach the issue in different ways.", "mt": "Cuando se enfrente a una gran cantidad de análisis, pida ayuda para crear un equipo que aborde la cuestión de diferentes maneras." }
 ]'
 ```
-will have the following response:
+
+The following call
+
+```bash
+curl --location --request GET 'http://127.0.0.1:8000/api/scores?model=Unbabel/wmt22-cometkiwi-da&mode=dev' \
+--header 'Content-Type: application/json' \
+--data '[
+    {"src": "How to Demonstrate Your Strategic Thinking Skills", "mt": "Cómo demostrar su capacidad de pensamiento estratégico" },{ "src": "Why is Accuracy important in the workplace?", "mt": "¿Por qué es importante la precisión en el trabajo" }, { "src": "When faced with a large amount of analysis ask for support setting up a team to approach the issue in different ways.", "mt": "Cuando se enfrente a una gran cantidad de análisis, pida ayuda para crear un equipo que aborde la cuestión de diferentes maneras." }
+]'
+```
+will have the following response with real scores:
 
 ```json
 {
@@ -76,7 +88,8 @@ will have the following response:
 ## References 
 
 https://github.com/Unbabel/COMET
-
+https://huggingface.co/docs/transformers/installation#offline-mode
+https://huggingface.co/docs/hub/models-adding-libraries#download-files-from-the-hub
 
 ## Caveats / Warnings / To spruce up
 
@@ -93,3 +106,10 @@ Encoder model frozen.
 
 /run/media/souto/257-FLASH/python-comet/venv/lib/python3.12/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:419: Consider setting `persistent_workers=True` in 'predict_dataloader' to speed up the dataloader worker initialization.
 Predicting DataLoader 0: 100%|███████████████████████████████████████████████████████| 1/1 [00:00<00:00,  1.63it/s]
+
+## todo
+
+- Add logging
+- Add auth
+- Fix pytorch issues
+- Deploy in GPU-powered server

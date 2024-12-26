@@ -1,9 +1,10 @@
 import os
-from glob import glob
+import random
 
 # from pathlib import Path
 from code.get_models import get_model_id
 from code.models.mtpe import ScoredTranslation, Translation
+from glob import glob
 from typing import List
 
 # from comet import download_model, load_from_checkpoint
@@ -23,6 +24,7 @@ custom_hf_cache_dpath = os.getenv("HF_HOME")
 # HF_HOME = os.environ["HF_HOME"]
 TOKEN = os.environ["HUGGINGFACE_TOKEN"]
 login(TOKEN)  # huggingface-cli login --token $HUGGINGFACE_TOKEN
+# login(token=TOKEN, add_to_git_credential=True)
 clean_up_tokenization_spaces = True
 
 
@@ -53,6 +55,11 @@ def produce_scores(model_ckpt, data):
     return model_ckpt.predict(data_dict, batch_size=8, gpus=1).scores
 
 
+def produce_scores_mock(data):
+    data_dict = [{"src": obj.src, "mt": obj.mt} for obj in data]
+    return [round(random.uniform(0.5, 1), 15) for x in range(len(data_dict))]
+
+
 def add_scores_to_data(data, scores):
     # scores = produce_scores(data)
     return [
@@ -65,16 +72,18 @@ def add_scores_to_data(data, scores):
 
 
 @router.get("/scores")
-async def get_scores(translations: List[Translation], model: str):
-    model_id = get_model_id(model)
-    model_fpath = get_model_ckpt_fpath(model_id)
-
-    model_ckpt = load_from_checkpoint(model_fpath)
+async def get_scores(translations: List[Translation], model: str, mode: str = "mock"):
+    if mode == "mock":
+        scores = produce_scores_mock(translations)
+    else:
+        model_id = get_model_id(model)
+        model_fpath = get_model_ckpt_fpath(model_id)
+        model_ckpt = load_from_checkpoint(model_fpath)
+        scores = produce_scores(model_ckpt, translations)
 
     # model_output_scores = [0.3048415184020996, 0.23436091840267181, 0.6128204464912415]
     # model_output_system_score = 0.38400762776533764
 
-    scores = produce_scores(model_ckpt, translations)
     return {
         "data": add_scores_to_data(translations, scores),
         "model_output_system_score": sum(scores) / len(scores),
