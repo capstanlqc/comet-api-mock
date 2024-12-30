@@ -22,7 +22,7 @@ pip install -r requirements.txt
 
 Copy `.env.example` to `.env`:
 ```
-cp .env.example .env
+cp .env-example .env
 ```
 
 Update the environment variables you need to use in `.env`.
