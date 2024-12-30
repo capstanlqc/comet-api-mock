@@ -39,7 +39,11 @@ def add_scores_to_data(data, scores):
 
 
 @router.get("/scores")
-async def get_scores(translations: List[Translation], model: str, mode: str = "mock"):
+async def get_scores(
+    translations: List[Translation],
+    model: str = "Unbabel/wmt22-cometkiwi-da",
+    mode: str = "mock",
+):
     if mode == "mock":
         scores = produce_scores_mock(translations)
     else:
