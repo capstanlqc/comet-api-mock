@@ -6,14 +6,16 @@ from typing import List
 
 # from comet import download_model, load_from_checkpoint
 # from huggingface_hub import snapshot_download
+import os
 from dotenv import load_dotenv
-from fastapi import APIRouter, HTTPException  # , status
+from fastapi import APIRouter, HTTPException, Header  # , status
 
 # from comet import download_model, load_from_checkpoint
 # from huggingface_hub import snapshot_download
 
 
 load_dotenv()
+AUTH_KEY = os.environ.get("AUTH_KEY")
 
 # login(token=TOKEN, add_to_git_credential=True)
 clean_up_tokenization_spaces = True
@@ -43,7 +45,11 @@ async def get_scores(
     translations: List[Translation],
     model: str = "Unbabel/wmt22-cometkiwi-da",
     mode: str = "mock",
+    authorization: str = Header(None)  # extracts 'Authorization' header
 ):
+    if not authorization or authorization != f"Bearer {AUTH_KEY}":
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
     if mode == "mock":
         scores = produce_scores_mock(translations)
     else:
